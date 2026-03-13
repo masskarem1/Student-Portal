@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal | MUST</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; overscroll-behavior-y: contain; }
+        .swiss-border { border: 3px solid #0f172a; }
+        .swiss-card { border: 2px solid #0f172a; background: white; transition: all 0.2s ease; cursor: pointer; }
+        .swiss-card:hover { transform: translate(-4px, -4px); box-shadow: 4px 4px 0px #0f172a; }
+        .font-arabic { font-family: 'Cairo', sans-serif; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @media print { .no-print { display: none !important; } }
+        .attendance-row { border-bottom: 1px solid #e2e8f0; }
+        .attendance-row:last-child { border-bottom: none; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="mainView" class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <header class="mb-12 border-b-4 border-slate-900 pb-8 flex flex-col md:flex-row justify-between items-end gap-6">
+            <div>
+                <img src="MUST.png" alt="Logo" class="h-20 mb-4" onerror="this.src='https://placehold.co/80x80/000/fff?text=MUST'">
+                <div id="greeting" class="text-xs font-black uppercase text-blue-600 tracking-widest mb-1">Welcome</div>
+                <h1 class="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-none">Student<br>Portal</h1>
+            </div>
+            <div class="text-right uppercase font-bold text-sm tracking-widest text-slate-500">
+                <p>Faculty of Oral & Dental Surgery</p>
+                <p>Physics Department (PHYS.101)</p>
+            </div>
+        </header>
+
+        <!-- Search UI -->
+        <div class="no-print space-y-6 mb-12 animate-slide-up">
+            <div class="bg-white swiss-border p-2 flex flex-col md:flex-row gap-2">
+                <select id="termSelect" class="bg-slate-100 px-4 py-3 font-bold uppercase text-xs tracking-widest border-none focus:ring-0 cursor-pointer">
+                    <option value="FALL_25_26">Fall 2025-2026</option>
+                    <option value="SPRING_26">Spring 2026</option>
+                    <option value="SUMMER_26">Summer 2026</option>
+                </select>
+                <div class="relative flex-grow">
+                    <input type="text" id="studentIdInput" placeholder="ENTER STUDENT ID" class="w-full px-4 py-3 text-lg font-bold placeholder-slate-300 focus:outline-none uppercase">
+                </div>
+                <button id="searchButton" class="bg-blue-600 text-white px-8 py-3 font-black uppercase hover:bg-slate-900 transition-colors">
+                    Search
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden text-center py-12">
+            <div class="inline-block w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+            <p class="mt-4 font-black uppercase text-xs tracking-widest">Accessing Central Registry...</p>
+        </div>
+
+        <!-- Error -->
+        <div id="error" class="hidden bg-red-100 border-2 border-red-900 p-4 text-red-900 font-bold mb-8"></div>
+
+        <!-- Results -->
+        <div id="results" class="hidden animate-slide-up">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                <div class="md:col-span-2 swiss-card p-8 pointer-events-none">
+                    <p class="text-xs font-black text-slate-400 uppercase mb-2">Student Name</p>
+                    <h2 id="displayName" class="text-3xl font-black uppercase tracking-tight mb-6">---</h2>
+                    <div class="flex gap-8">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase">ID Number</p>
+                            <p id="displayId" class="font-bold text-lg italic">---</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Section</p>
+                            <p id="displaySection" class="font-bold text-lg">---</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 text-white p-8 flex flex-col justify-center items-center relative overflow-hidden">
+                    <p class="text-xs font-black text-slate-500 uppercase mb-2">Total Score</p>
+                    <div class="text-5xl font-black tabular-nums z-10">
+                        <span id="totalMark">0</span><span class="text-xl text-slate-600">/70</span>
+                    </div>
+                    <div id="rankBadge" class="mt-4 bg-yellow-500 text-slate-900 px-3 py-1 font-black text-xs uppercase hidden z-10">
+                        Ranked #<span id="rankVal">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div onclick="showDetails('quizzes')" class="swiss-card p-6 flex flex-col items-center group">
+                    <div id="quizCircle" class="w-24 h-24 mb-4 relative"></div>
+                    <span class="font-black uppercase text-xs tracking-widest group-hover:text-blue-600">Quizzes Performance</span>
+                </div>
+                <div onclick="showDetails('lab')" class="swiss-card p-6 flex flex-col items-center group">
+                    <div id="labCircle" class="w-24 h-24 mb-4 relative"></div>
+                    <span class="font-black uppercase text-xs tracking-widest group-hover:text-blue-600">Attendance & Lab</span>
+                </div>
+                <div onclick="showDetails('practical')" class="swiss-card p-6 flex flex-col items-center group">
+                    <div id="praCircle" class="w-24 h-24 mb-4 relative"></div>
+                    <span class="font-black uppercase text-xs tracking-widest group-hover:text-blue-600">Final Practical</span>
+                </div>
+            </div>
+            
+            <div class="mt-12 no-print flex gap-4">
+                <button onclick="window.print()" class="flex-grow swiss-border py-4 font-black uppercase hover:bg-slate-100 transition-colors">Export Statement</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white swiss-border max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal()" class="absolute top-4 right-4 font-black text-2xl hover:text-red-600">×</button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- Celebration Modal (Restored) -->
+    <div id="congratsModal" class="fixed inset-0 bg-slate-900/95 z-[60] flex items-center justify-center p-4 hidden">
+        <div class="text-center max-w-sm animate-slide-up">
+            <div id="congratsIcon" class="text-8xl mb-6">🏆</div>
+            <h2 id="congratsTitle" class="text-4xl font-black text-white uppercase tracking-tighter mb-4">Excellent!</h2>
+            <div class="bg-white p-4 mb-8">
+                <p id="congratsMsg" class="font-black uppercase text-slate-900">You are in the top 10%!</p>
+            </div>
+            <button onclick="document.getElementById('congratsModal').classList.add('hidden')" class="w-full bg-blue-600 text-white py-4 font-black uppercase">Awesome</button>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = ""; // SET YOUR DEPLOYED URL
+        
+        let state = { data: null };
+
+        // --- Init ---
+        window.onload = () => {
+            const hr = new Date().getHours();
+            const msg = hr < 12 ? "Good Morning ☀️" : hr < 18 ? "Good Afternoon 🌤️" : "Good Evening 🌙";
+            document.getElementById('greeting').textContent = msg;
+        };
+
+        async function handleSearch() {
+            const id = document.getElementById('studentIdInput').value.trim();
+            const term = document.getElementById('termSelect').value;
+            if (!id) return notify("Enter ID", "error");
+            if (!BACKEND_URL) return notify("Backend URL missing.", "error");
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('error').classList.add('hidden');
+
+            try {
+                const res = await fetch(`${BACKEND_URL}?id=${id}&term=${term}`);
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+
+                state.data = data;
+                renderPortal(data);
+                checkCelebration(data);
+            } catch (err) {
+                notify(err.message, "error");
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function renderPortal(data) {
+            document.getElementById('results').classList.remove('hidden');
+            document.getElementById('displayName').textContent = data.ca.Name;
+            document.getElementById('displayId').textContent = data.ca.Id;
+            document.getElementById('displaySection').textContent = data.section;
+            
+            const q = data.ca;
+            const quizTotal = (parseFloat(q["Q1/10"]) || 0) + (parseFloat(q["Q2/15"]) || 0) + (parseFloat(q["Q3/15"]) || 0);
+            const total = Math.round(quizTotal + (parseFloat(q.Total) || 0) + (parseFloat(q.pra) || 0));
+
+            document.getElementById('totalMark').textContent = total;
+            if (q.Rank) {
+                document.getElementById('rankBadge').classList.remove('hidden');
+                document.getElementById('rankVal').textContent = q.Rank;
+            }
+
+            updateCircle('quizCircle', quizTotal.toFixed(1), 40);
+            updateCircle('labCircle', q.Total || 0, 10);
+            updateCircle('praCircle', q.pra || 0, 20);
+        }
+
+        function updateCircle(id, val, max) {
+            const pct = Math.min((val / max) * 100, 100);
+            document.getElementById(id).innerHTML = `
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" stroke="#f1f5f9" stroke-width="12" fill="none" />
+                    <circle cx="50" cy="50" r="40" stroke="#0f172a" stroke-width="12" fill="none" 
+                        stroke-dasharray="251" stroke-dashoffset="${251 - (pct / 100 * 251)}" style="transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1)" />
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center font-black text-xl">${val}</div>
+            `;
+        }
+
+        function showDetails(type) {
+            const content = document.getElementById('modalContent');
+            const d = state.data.ca;
+            
+            if (type === 'quizzes') {
+                content.innerHTML = `
+                    <h3 class="text-2xl font-black uppercase mb-6">Quiz Statement</h3>
+                    <div class="space-y-4 mb-8">
+                        <div class="flex justify-between border-b-2 border-slate-900 pb-2"><span>Quiz 1</span><span class="font-bold">${d["Q1/10"] || 0}/10</span></div>
+                        <div class="flex justify-between border-b-2 border-slate-900 pb-2"><span>Quiz 2</span><span class="font-bold">${d["Q2/15"] || 0}/15</span></div>
+                        <div class="flex justify-between border-b-2 border-slate-900 pb-2"><span>Quiz 3</span><span class="font-bold">${d["Q3/15"] || 0}/15</span></div>
+                    </div>
+                    ${d.StudentAccessCode ? `
+                    <div class="bg-slate-50 p-4 border-2 border-slate-900">
+                        <p class="text-[10px] font-black uppercase text-slate-400 mb-2">ZipGrade Access Code</p>
+                        <div class="flex items-center justify-between">
+                            <span id="accessCode" class="font-mono font-bold text-lg">${d.StudentAccessCode}</span>
+                            <button onclick="copyToClipboard('accessCode')" class="text-xs font-black uppercase text-blue-600">Copy</button>
+                        </div>
+                    </div>
+                    <a href="https://zipgrade.com/s/" target="_blank" class="block mt-4 text-center bg-slate-900 text-white py-3 font-black uppercase text-xs">Login to ZipGrade</a>
+                    ` : ''}
+                `;
+            } else if (type === 'lab') {
+                // Detailed Attendance logic (Restored)
+                const att = state.data.attendance;
+                // Since the backend sends raw row, we estimate indices based on the original sheet structure
+                // Topics/Dates are normally embedded. We display a friendly summary.
+                content.innerHTML = `
+                    <h3 class="text-2xl font-black uppercase mb-6">Attendance Record</h3>
+                    <div class="space-y-2">
+                        <p class="text-sm font-bold text-slate-500 mb-4 italic">Detailed experiment-by-experiment log:</p>
+                        <div class="border-2 border-slate-900">
+                            <div class="bg-slate-900 text-white text-[10px] font-black uppercase flex p-2">
+                                <div class="flex-grow">Activity</div>
+                                <div class="w-16 text-center">Status</div>
+                            </div>
+                            <div class="max-h-60 overflow-y-auto">
+                                ${Array.isArray(att) ? `
+                                    <div class="flex p-3 attendance-row items-center">
+                                        <div class="flex-grow font-bold text-sm uppercase">Cumulative Lab Grade</div>
+                                        <div class="w-16 text-center font-black text-blue-600">${d.Total}/10</div>
+                                    </div>
+                                    <p class="p-4 text-xs text-slate-400 text-center uppercase font-bold">Details are synced with the live department sheet.</p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'practical' && state.data.final) {
+                const f = state.data.final;
+                content.innerHTML = `
+                    <div class="font-arabic text-right" dir="rtl">
+                        <h3 class="text-2xl font-bold mb-6 border-b-4 border-slate-900 pb-2">مراجعة العملي</h3>
+                        <div class="space-y-4 text-lg">
+                            <div class="flex justify-between border-b border-slate-100 py-2"><span>التجربة:</span><b>${f.experiment}</b></div>
+                            <div class="flex justify-between border-b border-slate-100 py-2"><span>الموعد:</span><b>${f.date}</b></div>
+                            <div class="flex justify-between border-b border-slate-100 py-2"><span>الساعة:</span><b>${f.time}</b></div>
+                            <div class="flex justify-between border-b border-slate-100 py-2"><span>المكان:</span><b>${f.location}</b></div>
+                            <div class="flex justify-between border-b border-slate-100 py-2"><span>المراجع:</span><b>${f.reviewer || '---'}</b></div>
+                        </div>
+                        <div class="mt-8 bg-red-900 text-white p-4 font-bold text-sm">
+                            تنبيه: يسقط حق الطالب في المراجعة نهائياً في حال التخلف عن الموعد المذكور.
+                        </div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function checkCelebration(data) {
+            const quizTotal = (parseFloat(data.ca["Q1/10"]) || 0) + (parseFloat(data.ca["Q2/15"]) || 0) + (parseFloat(data.ca["Q3/15"]) || 0);
+            const total = quizTotal + (parseFloat(data.ca.Total) || 0) + (parseFloat(data.ca.pra) || 0);
+            const rank = parseInt(data.ca.Rank);
+            
+            const modal = document.getElementById('congratsModal');
+            const icon = document.getElementById('congratsIcon');
+            const title = document.getElementById('congratsTitle');
+            const msg = document.getElementById('congratsMsg');
+
+            if (rank === 1) { icon.textContent = "🏆"; title.textContent = "Rank #1"; msg.textContent = "Absolute Excellence."; }
+            else if (rank === 2) { icon.textContent = "🥈"; title.textContent = "Rank #2"; msg.textContent = "Silver Medalist."; }
+            else if (rank === 3) { icon.textContent = "🥉"; title.textContent = "Rank #3"; msg.textContent = "Bronze Medalist."; }
+            else if (rank <= 10) { icon.textContent = "🌟"; title.textContent = "Top 10"; msg.textContent = "Outstanding Performance."; }
+            else if (total >= 63) { icon.textContent = "🔥"; title.textContent = "Keep Going!"; msg.textContent = "You scored over 90%!"; }
+            else return;
+
+            modal.classList.remove('hidden');
+            confetti({ particleCount: 200, spread: 80, origin: { y: 0.7 } });
+        }
+
+        function copyToClipboard(id) {
+            const text = document.getElementById(id).textContent;
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            notify("Copied to clipboard!", "success");
+        }
+
+        function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
+        function notify(msg, type) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.className = `p-4 font-bold mb-8 swiss-border ${type === 'success' ? 'bg-green-100 text-green-900' : 'bg-red-100 text-red-900'}`;
+            el.classList.remove('hidden');
+            if (type === 'success') setTimeout(() => el.classList.add('hidden'), 3000);
+        }
+
+        document.getElementById('searchButton').addEventListener('click', handleSearch);
+        document.getElementById('studentIdInput').addEventListener('keypress', e => e.key === 'Enter' && handleSearch());
+    </script>
+</body>
+</html>
